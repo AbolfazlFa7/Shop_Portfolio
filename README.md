@@ -147,6 +147,7 @@ cp template.env .env
 # Edit .env file with your configs
 
 # Apply migrations
+python manage.py makemigrations
 python manage.py migrate
 
 # Run server
@@ -171,6 +172,13 @@ Run all tests:
 
 ```bash
 python manage.py test
+```
+
+## 📊 Seeding
+Populates the database with realistic fake data:
+
+```bash
+python manage.py seed
 ```
 
 ---
