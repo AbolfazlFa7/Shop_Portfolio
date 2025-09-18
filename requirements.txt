@@ -1,0 +1,10 @@
+django
+djangorestframework
+djangorestframework-simplejwt
+drf-spectacular
+django-taggit
+django_extensions
+debug_toolbar
+django-filter
+django-environ
+celery
