@@ -1,30 +1,19 @@
-from businesses.models import Business
-from common.services.security.encryption import hmac_service
+import hashlib
+from common.models import EncryptedCharField
 from django.conf import settings
 from django.db import models
-
-from common.models import EncryptedCharField
 
 
 class Wallet(models.Model):
     class WalletType(models.TextChoices):
-        PERSONAL = "PERSONAL", "Personal"  # ولت معمولی کلاینت
-        BUSINESS = "BUSINESS", "Business"  # ولت اختصاصی بیزنس
-        ESCROW = "ESCROW", "Escrow (System)"  # پول‌های امانی
-        REVENUE = "REVENUE", "Platform Revenue"  # کارمزد و درآمد خالص پلتفرم
+        PERSONAL = "PERSONAL", "Personal"
+        ESCROW = "ESCROW", "Escrow (System)"
+        REVENUE = "REVENUE", "Platform Revenue"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="wallets",
-        db_index=True,
-    )
-    business = models.ForeignKey(
-        Business,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="wallet",
         db_index=True,
     )
     type = models.CharField(
@@ -48,22 +37,15 @@ class Wallet(models.Model):
                 condition=models.Q(balance__gte=0), name="wallet_balance_non_negative"
             ),
             models.UniqueConstraint(
-                fields=["user", "business", "type"],
-                name="unique_user_business_wallet_type",
+                fields=["user", "type"],
+                name="unique_user_wallet_type",
                 nulls_distinct=False,
-            ),
-            models.CheckConstraint(
-                condition=(
-                    models.Q(type="BUSINESS", business__isnull=False)
-                    | models.Q(~models.Q(type="BUSINESS"), business__isnull=True)
-                ),
-                name="wallet_type_business_match",
             ),
         ]
 
     @classmethod
-    def find_by_card_number(cls, card_number) -> models.QuerySet[Wallet]:
-        h = hmac_service.compute(card_number)
+    def find_by_card_number(cls, card_number) -> models.QuerySet["Wallet"]:
+        h = hashlib.sha256(str(card_number).encode()).hexdigest()
         return cls.objects.filter(card_number_hmac=h)
 
 
@@ -71,7 +53,6 @@ class WalletTransaction(models.Model):
     class Type(models.TextChoices):
         DEPOSIT = "DEPOSIT", "Deposit"
         WITHDRAWAL = "WITHDRAWAL", "Withdrawal"
-        BOOKING_PAYMENT = "BOOKING_PAYMENT", "Booking Payment"
         SYSTEM_PAYMENT = "SYSTEM_PAYMENT", "System Payment"
         REFUND = "REFUND", "Refund"
 

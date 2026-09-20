@@ -9,7 +9,6 @@ class WalletResponseSchema(ModelSchema):
         fields = [
             "id",
             "user",
-            "business",
             "is_active",
             "balance",
             "card_number",
