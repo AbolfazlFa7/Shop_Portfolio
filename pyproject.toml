@@ -23,3 +23,6 @@ dependencies = [
 dev = [
     "django-debug-toolbar",
 ]
+
+[tool.ruff.lint]
+ignore = ["BLE001", "RUF012"]

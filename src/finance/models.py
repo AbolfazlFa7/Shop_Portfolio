@@ -1,9 +1,9 @@
+from businesses.models import Business
+from common.services.security.encryption import hmac_service
 from django.conf import settings
 from django.db import models
 
-from businesses.models import Business
 from common.models import EncryptedCharField
-from common.services.security.encryption import hmac_service
 
 
 class Wallet(models.Model):

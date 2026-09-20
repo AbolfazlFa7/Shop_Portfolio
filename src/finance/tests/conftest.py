@@ -1,7 +1,6 @@
 import pytest
-from django.contrib.auth import get_user_model
-
 from businesses.models import Business, BusinessCategory, City, Province
+from django.contrib.auth import get_user_model
 
 User = get_user_model()
 

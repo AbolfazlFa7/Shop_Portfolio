@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.cache import cache
 from ninja.errors import HttpError
 
+from authentication.tasks import send_sms_task
 from common.services.otp import TimeBased_OTP as TOTP
 
 logger = logging.getLogger(__name__)
@@ -24,9 +25,7 @@ class OTP:
         code = TOTP.create(secret=secret_key)
 
         message = f"کد یکبار مصرف شما: {code}"
-        # stat = send_sms_task.send(phone_number, message)
-        stat = (phone_number, message)
-        print(stat)
+        stat = send_sms_task.send(phone_number, message)
 
         if stat:
             logger.info(f"OTP sent to {phone_number}")

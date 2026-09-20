@@ -1,5 +1,7 @@
-from ninja import Schema
 from datetime import datetime
+
+from ninja import Schema
+
 
 class CouponSchema(Schema):
     id: int
@@ -13,6 +15,7 @@ class CouponSchema(Schema):
     min_order_amount: int
     max_usage: int | None = None
     usage_count: int
+
 
 class CouponVerifySchema(Schema):
     code: str

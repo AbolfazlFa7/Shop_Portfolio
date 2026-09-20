@@ -26,8 +26,7 @@ def normalize_email(email: str) -> str:
     normalized_email = prefix[::-1] + suffix[::-1]
 
     if normalized_email.count(".") > 1:
-        raise ValidationError(
-            [{"email": "Your email is not in the correct format"}])
+        raise ValidationError([{"email": "Your email is not in the correct format"}])
 
     return normalized_email
 

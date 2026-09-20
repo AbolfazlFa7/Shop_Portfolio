@@ -1,1 +1,3 @@
-from .jwt import JWTService
+from .jwt import AsyncJWTService, JWTAuth
+
+__all__ = ["AsyncJWTService", "JWTAuth"]

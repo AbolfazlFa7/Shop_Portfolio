@@ -1,4 +1,5 @@
 from django.db import models
+
 from catalog.models import Product
 
 
@@ -9,7 +10,9 @@ class Coupon(models.Model):
 
     code = models.CharField(max_length=50, unique=True, db_index=True)
     description = models.CharField(max_length=255, blank=True)
-    discount_type = models.CharField(max_length=10, choices=DiscountType.choices, default=DiscountType.PERCENT)
+    discount_type = models.CharField(
+        max_length=10, choices=DiscountType.choices, default=DiscountType.PERCENT
+    )
     discount_value = models.PositiveBigIntegerField()
     start_date = models.DateTimeField()
     end_date = models.DateTimeField(null=True, blank=True)
@@ -20,7 +23,7 @@ class Coupon(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=['code', 'is_active']),
+            models.Index(fields=["code", "is_active"]),
         ]
 
     def __str__(self):
@@ -28,10 +31,16 @@ class Coupon(models.Model):
 
 
 class ProductCoupon(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='coupons')
-    coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, related_name='products')
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="coupons"
+    )
+    coupon = models.ForeignKey(
+        Coupon, on_delete=models.CASCADE, related_name="products"
+    )
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['product', 'coupon'], name='unique_product_coupon')
+            models.UniqueConstraint(
+                fields=["product", "coupon"], name="unique_product_coupon"
+            )
         ]

@@ -1,19 +1,24 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
+
 import jwt
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from ninja.errors import HttpError
+from ninja.security import HttpBearer
 
 User = get_user_model()
 
-class JWTService:
+
+class AsyncJWTService:
     def __init__(self):
         jwt_settings = getattr(settings, "JWT_SETTINGS", {})
         self.secret = jwt_settings.get("JWT_SECRET_KEY", settings.SECRET_KEY)
         self.algorithm = jwt_settings.get("ALGORITHM", "HS256")
-        self.access_lifetime = jwt_settings.get("ACCESS_LIFETIME", timedelta(minutes=15))
+        self.access_lifetime = jwt_settings.get(
+            "ACCESS_LIFETIME", timedelta(minutes=15)
+        )
         self.refresh_lifetime = jwt_settings.get("REFRESH_LIFETIME", timedelta(days=1))
 
     def _encode(self, user_id: str, token_type: str, lifetime: timedelta) -> str:
@@ -36,17 +41,55 @@ class JWTService:
         except jwt.InvalidTokenError:
             raise HttpError(HTTPStatus.UNAUTHORIZED, "Invalid token")
 
-    def create_pair(self, user) -> dict:
+    def _validate_type(self, payload: dict, expected: str) -> None:
+        if payload.get("type") != expected:
+            raise HttpError(HTTPStatus.UNAUTHORIZED, "Invalid token type")
+
+    def _create_access(self, user_id: str) -> str:
+        return self._encode(user_id, "access", self.access_lifetime)
+
+    def _create_refresh(self, user_id: str) -> str:
+        return self._encode(user_id, "refresh", self.refresh_lifetime)
+
+    async def _ensure_user_active(self, user_id: str) -> None:
+        if not await User.objects.filter(id=user_id, is_active=True).aexists():
+            raise HttpError(HTTPStatus.UNAUTHORIZED, "User not found or inactive")
+
+    async def create_pair(self, user) -> dict:
+        user_id = str(user.id)
+        await self._ensure_user_active(user_id)
         return {
-            "access_token": self._encode(str(user.id), "access", self.access_lifetime),
-            "refresh_token": self._encode(str(user.id), "refresh", self.refresh_lifetime),
+            "access_token": self._create_access(user_id),
+            "refresh_token": self._create_refresh(user_id),
         }
 
-    def refresh(self, refresh_token: str) -> dict:
+    async def refresh(self, refresh_token: str) -> dict:
         payload = self._decode(refresh_token)
-        if payload.get("type") != "refresh":
-            raise HttpError(HTTPStatus.UNAUTHORIZED, "Invalid token type")
-        user_id = payload.get("sub")
+        self._validate_type(payload, "refresh")
+        user_id = payload["sub"]
+        await self._ensure_user_active(user_id)
         return {
-            "access_token": self._encode(user_id, "access", self.access_lifetime),
+            "access_token": self._create_access(user_id),
+            "refresh_token": self._create_refresh(user_id),
         }
+
+    async def logout(self, refresh_token: str, user_id: int) -> None:
+        payload = self._decode(refresh_token)
+        self._validate_type(payload, "refresh")
+        if str(payload.get("sub")) != str(user_id):
+            raise HttpError(HTTPStatus.UNAUTHORIZED, "Invalid token owner")
+
+    def verify_access(self, token: str) -> dict:
+        payload = self._decode(token)
+        self._validate_type(payload, "access")
+        return payload
+
+
+class JWTAuth(HttpBearer):
+    async def authenticate(self, request, token: str):
+        service = AsyncJWTService()
+        payload = service.verify_access(token)
+        user = await User.objects.filter(id=payload["sub"], is_active=True).afirst()
+        if not user:
+            raise HttpError(HTTPStatus.UNAUTHORIZED, "User not found or inactive")
+        return user

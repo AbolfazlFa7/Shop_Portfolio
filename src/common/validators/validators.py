@@ -23,8 +23,7 @@ def password_validation(value: str):
         elif char in SPECIAL_CHARS:
             has_special = True
         else:
-            raise ValidationError(
-                [{"password": f"Unsupported character: {char}"}])
+            raise ValidationError([{"password": f"Unsupported character: {char}"}])
 
     if not has_lower:
         raise ValidationError(
