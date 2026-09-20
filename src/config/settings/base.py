@@ -118,3 +118,72 @@ JWT_SETTINGS = {
     "BLACKLIST_AFTER_ROTATION": True,
     "TEMP_TOKEN_LIFETIME": timedelta(minutes=2),
 }
+
+
+# Logging
+LOGS_DIR = BASE_DIR / "logs"
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} [{levelname}] {name} {message}",
+            "style": "{",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "file_warnings": {
+            "level": "WARNING",
+            "class": "logging.FileHandler",
+            "filename": LOGS_DIR / "warnings.log",
+            "formatter": "verbose",
+        },
+        "file_errors": {
+            "level": "ERROR",
+            "class": "logging.FileHandler",
+            "filename": LOGS_DIR / "errors.log",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "django.request": {
+            "handlers": ["console", "file_errors"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "uvicorn": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "channels": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
+for app in LOCAL_APPS:
+    LOGGING["loggers"][app] = {
+        "handlers": ["console"],
+        "level": "INFO",
+        "propagate": True,
+    }
