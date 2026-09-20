@@ -43,7 +43,9 @@ DJANGO_APPS = [
 
 LOCAL_APPS = [
     'authentication',
-    'product.apps.ProductApiConfig',
+    'catalog',
+    'promotions',
+    'finance',
 ]
 
 THIRD_PARTY_APPS = [
