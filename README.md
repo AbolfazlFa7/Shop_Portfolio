@@ -1,193 +1,260 @@
 # 🛒 Shop Portfolio
 
-A **Django + DRF** based e-commerce backend API that provides full authentication, user management, product catalog, cart, orders, payments, and coupon system with documentation and background tasks.
+A **Django + Django Ninja** backend for an e‑commerce platform, built with an async‑first mindset and a clean separation between API, services, selectors, and schemas. Covers authentication via OTP, a product catalog, coupons, and a wallet/finance system powered by the Zibal payment gateway.
 
 ---
 
-## 🚀 Features
+## ✨ Features
 
 ### 🔐 Authentication & User Management
 
-* **Custom User Model** with email login, phone, birthday, gender, and secret key.
-* **JWT Authentication** using `access` and `refresh` tokens (SimpleJWT).
-* **User CRUD APIs** (register, profile, update, delete).
-* **Logout with Blacklist** for refresh tokens.
-* **OTP System**:
+- **Custom User model** keyed on `phone_number` (via `AbstractBaseUser`).
+- **OTP login/register flow** using TOTP (`pyotp`) stored in cache with an expiring secret.
+- **JWT access/refresh tokens** (custom `JWTService`, `sub` claim = user id).
+- **Google OAuth callback** endpoint for social login (exchange code → userinfo → JWT).
+- **Superuser creation** auto-provisions a `UserTOTP` record for 2FA.
+- Custom **phone/email normalizers** and **password validators**.
 
-  * Account activation via email OTP.
-  * Password reset with OTP.
-  * Phone number verification & set with OTP.
-* **Custom Password Validation** with serializer-level validation.
+### 🛍️ Catalog
 
----
+- **Hierarchical categories** (self-referential `parent`).
+- **Products** with slug, SKU, price, stock, tags (`django-taggit`), and availability.
+- **Product images** with a unique-featured-image constraint per product.
+- **Product attributes** as key/value pairs.
 
-### 🛍️ Product & Category
+### 🎟️ Promotions
 
-* Category hierarchy with parent-child relationships.
-* Product model with:
+- **Coupons** with percent or fixed discounts.
+- Start/end dates, minimum order amount, and max-usage tracking.
+- **Per-product coupon** mapping (`ProductCoupon`).
+- Verify endpoint that returns the computed discount.
 
-  * Unique **Slug** and **SKU** auto-generation.
-  * Stock, availability, and price management.
-  * Tagging system (`django-taggit`).
-  * Attributes (key-value pairs).
-* Product images with **unique featured image constraint**.
-* Optimized queries using `select_related`, `prefetch_related`, and annotations.
-* Public product listing with filters (via `django-filters`).
-* Admin CRUD endpoints for product & category management.
+### 💳 Finance & Wallets
 
----
+- **Wallet model** supporting `PERSONAL`, `BUSINESS`, `ESCROW`, and `REVENUE` types.
+- **Wallet transactions** with `DEPOSIT`, `WITHDRAWAL`, `BOOKING_PAYMENT`, `SYSTEM_PAYMENT`, and `REFUND` types and `PENDING`/`SUCCESSFUL`/`FAILED` statuses.
+- **Atomic transfers** between wallets (`WalletTransfer`) using `select_for_update` and `F()` expressions.
+- **Zibal gateway integration** for depositing into wallets:
+    - Lazy request, verify, and inquiry endpoints.
+    - Callback handler that locks the pending transaction and updates balances atomically.
+    - Encrypted card/Sheba/account numbers via `EncryptedCharField` + HMAC lookup.
+- **Pagination** on wallet and transaction listings via `django-ninja`'s `@paginate`.
 
-### 🎟️ Coupon System
+### ⚙️ Infrastructure
 
-* Coupon features:
-
-  * Unique code (auto-generated if empty).
-  * Percentage or fixed amount discounts.
-  * Min order amount requirement.
-  * Usage count & max usage limit.
-  * Start & end date.
-* Coupon relations:
-
-  * Assign to **specific products**.
-  * Assign to **categories**.
-  * Assign to **users**.
-* API endpoint for verifying coupon validity and returning final price.
+- **Django Ninja** routers per domain, composed in `config/urls.py`.
+- **Custom permission decorator** (`@permissions(...)`) with sync/async support.
+- **Query logger middleware** for development (SQL + timing per request).
+- **Dramatiq** worker for SMS tasks (MeliPayamak provider).
+- **Seed command** (`python manage.py seed`) to populate the DB with realistic data.
+- **Ruff** for linting, **pytest + pytest-django + pytest-asyncio** for tests.
 
 ---
 
-### 🛒 Cart
+## 🧱 Tech Stack
 
-* One-to-one cart per user.
-* Add/remove/update cart items.
-* Prevent duplicate products in cart.
-* Auto-adjust item quantity if it exceeds product stock.
-* Prefetch featured product images for faster responses.
-
----
-
-### 📦 Orders
-
-* Create orders directly from cart items.
-* Auto-generate **tracking codes**.
-* Order status flow: `pending → paid → shipped → completed / canceled`.
-* Store total amount, discount amount, and final amount.
-* Order items snapshot product, quantity, and price at purchase time.
-
----
-
-### 💳 Payments
-
-* Integrated with **Zarinpal Gateway** (sandbox & real).
-* API for initiating payments, returning payment URL.
-* Callback endpoint for verifying payments.
-* Tracks transaction IDs and reference IDs.
-* Auto-clear user cart after successful payment.
-* Coupon usage count updated after successful payment.
-* Payment status tracking: `pending`, `success`, `failed`.
+| Layer           | Tool                                  |
+| --------------- | ------------------------------------- |
+| Web framework   | Django                                |
+| API layer       | Django Ninja                          |
+| Auth            | Custom JWT + pyotp (TOTP)             |
+| Async tasks     | Dramatiq (Redis broker)               |
+| Payments        | Zibal                                 |
+| SMS             | MeliPayamak                           |
+| DB (dev)        | SQLite                                |
+| DB (prod)       | PostgreSQL                            |
+| Cache           | LocMem (dev), Redis (prod)            |
+| Linting         | Ruff                                  |
+| Testing         | pytest, pytest-django, pytest-asyncio |
+| Package manager | uv                                    |
 
 ---
 
-### ⭐ Reviews
+## 📁 Project Structure
 
-* Users can leave product reviews (1–5 stars).
-* Each user can only review a product once.
-* Reviews support images (max 5 per review).
-* Update and delete review endpoints.
-* Admin management of reviews and review images.
+```
+src/
+├── authentication/    # User model, OTP, JWT auth, social login
+├── catalog/           # Categories, products, attributes, images
+├── promotions/        # Coupons and product-coupon mapping
+├── finance/           # Wallets, transactions, Zibal gateway
+├── common/            # Shared utilities: JWT, OTP, validators,
+│                      # normalizers, permissions, providers, seed
+└── config/            # Settings (base/dev/prod), URLs, ASGI/WSGI,
+                       # middlewares
+```
+
+Each domain app follows the same internal layout:
+
+```
+api/          # Ninja routers and views
+schemas/      # Request/response pydantic schemas
+selectors/    # Read-only query functions
+services/     # Business logic (write side)
+models.py     # Django models
+apps.py       # App config
+```
+
+This separation keeps **read paths (selectors)** and **write paths (services)** distinct from the **transport layer (api)**, which makes the code easier to test and reason about.
 
 ---
 
-### ⚙️ Tech Stack
+## 🚀 Getting Started
 
-* **Django 5.2** & **Django REST Framework**.
-* **JWT Authentication** with SimpleJWT.
-* **Celery + Redis** for async tasks (emails & SMS).
-* **Kavenegar API** for OTP SMS.
-* **drf-spectacular** for OpenAPI schema & Swagger/Redoc UI.
-* **Django Debug Toolbar**, **Django Extensions**, **Django Filters**, **Taggit**.
+### Prerequisites
 
----
+- Python **3.14+**
+- [uv](https://github.com/astral-sh/uv) installed
+- Redis (only needed if you run the Dramatiq worker)
 
-### 🧩 Admin Panel
+### 1. Clone and install
 
-* Django admin customization for all models:
+```bash
+git clone https://github.com/your-username/shop-portfolio.git
+cd shop-portfolio
+uv sync
+```
 
-  * Users with filters and search.
-  * Products with inline attributes and images.
-  * Categories, Coupons, Orders, Payments.
-* Prepopulated slugs and list filters for better UX.
+### 2. Configure environment
+
+Copy the template and adjust values:
+
+```bash
+cp template.env .env
+```
+
+Key variables:
+
+| Variable                           | Description                             |
+| ---------------------------------- | --------------------------------------- |
+| `SECRET_KEY`                       | Django secret key                       |
+| `DEBUG`                            | `True` in development                   |
+| `ALLOWED_HOSTS`                    | Comma-separated list                    |
+| `TIME_ZONE`                        | e.g. `Asia/Tehran`                      |
+| `CACHE_BACKEND` / `CACHE_LOCATION` | Cache backend (Redis in prod)           |
+| `DRAMATIQ_BROKER_URL`              | Redis URL for the worker                |
+| `ZIBAL_MERCHANT_ID`                | Zibal merchant id (`zibal` in sandbox)  |
+| `ZIBAL_CALLBACK_URL`               | Public URL for Zibal's callback         |
+| `EMAIL_HOST_*`                     | SMTP credentials if you need real email |
+
+### 3. Run migrations
+
+```bash
+cd src
+uv run python manage.py makemigrations
+uv run python manage.py migrate
+```
+
+### 4. Seed sample data (optional)
+
+```bash
+uv run python manage.py seed
+```
+
+This creates:
+
+- A test user (`09123456789`)
+- Two categories, two products
+- A `10%` coupon (`OFF10`)
+- A personal wallet with `1,000,000` balance and one deposit transaction
+
+### 5. Start the server
+
+```bash
+uv run python manage.py runserver
+```
+
+API is mounted at `/api/v1/`, docs at `/api/v1/docs/`.
+
+### 6. Start the Dramatiq worker (optional)
+
+```bash
+uv run dramatiq authentication.tasks
+```
 
 ---
 
 ## 📖 API Documentation
 
-* **Swagger UI**: `/api/schema/ui/`
-* **Redoc**: `/api/schema/redoc/`
-* **Raw Schema**: `/api/schema/`
+When `DEBUG=True`, an interactive OpenAPI UI is available at:
 
----
+- **Swagger-like UI:** `/api/v1/docs/`
+- **Raw OpenAPI schema:** `/api/v1/openapi.json`
 
-## ⚡ Installation & Setup
+Router prefixes:
 
-```bash
-# Clone repository
-git clone https://github.com/your-username/shop-portfolio.git
-cd shop-portfolio
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate   # Linux/Mac
-venv\Scripts\activate      # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Setup environment variables
-cp template.env .env
-# Edit .env file with your configs
-
-# Apply migrations
-python manage.py makemigrations
-python manage.py migrate
-
-# Run server
-python manage.py runserver
-```
-
----
-
-## 📦 Celery & Redis
-
-Start Redis server and run Celery worker:
-
-```bash
-celery -A config worker -l info
-```
+| Prefix                | Domain                                                 |
+| --------------------- | ------------------------------------------------------ |
+| `/api/v1/auth/`       | Authentication (OTP, login, register, refresh, logout) |
+| `/api/v1/catalog/`    | Products and categories                                |
+| `/api/v1/promotions/` | Coupons                                                |
+| `/api/v1/`            | Finance (wallets, deposits, Zibal callback)            |
 
 ---
 
 ## 🧪 Testing
 
-Run all tests:
-
 ```bash
-python manage.py test
+uv run pytest
 ```
 
-## 📊 Seeding
-Populates the database with realistic fake data:
+The project uses `pytest-django` with `pytest-asyncio` — most service and selector tests are written as `async def` tests using Django's async ORM methods (`acreate`, `aget_or_create`, `afirst`, etc.).
 
-```bash
-python manage.py seed
+> **Note on Django 7.0 deprecation warnings:** Django has deprecated the `EMAIL_*` settings in favor of the new `MAILERS` setting. The warnings you see in test output come from pytest-django reading these settings. You can silence them for now or plan a migration before upgrading to Django 7.
+
+To silence them in `pyproject.toml`:
+
+```toml
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::django.utils.deprecation.RemovedInDjango70Warning",
+]
 ```
 
 ---
 
-## 📜 Author:
-### 👤 Abolfazl Fallahkar
-#### 💻 Telegram 🆔: [@AbolfazlFa7](https://t.me/AbolfazlFa7)
+## 🧹 Linting
+
+```bash
+uv run ruff check src
+uv run ruff format src
+```
+
+Recommended `pyproject.toml` addition for Django projects (avoids false positives like `RUF012` on `Meta.indexes`):
+
+```toml
+[tool.ruff.lint]
+ignore = ["RUF012"]
+```
+
 ---
 
-## 📝 License
+## 🔒 Security Notes
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- JWT secret falls back to `SECRET_KEY` if `JWT_SETTINGS["JWT_SECRET_KEY"]` is unset — **always set a distinct value in production**.
+- Card numbers, Sheba numbers, and account numbers are stored with `EncryptedCharField`; the HMAC column (`card_number_hmac`) enables lookups without decrypting.
+- In production (`DEBUG=False`), the OpenAPI schema endpoint is disabled and HTTPS is enforced (`SECURE_SSL_REDIRECT`, secure cookies).
+- Zibal callback signature is validated by re-verifying the payment with Zibal before crediting the wallet.
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] Cart and order modules
+- [ ] Reviews (1–5 stars, images)
+- [ ] Additional payment gateways
+- [ ] Rate limiting on OTP endpoints
+- [ ] Migrate to Django's `MAILERS` setting
+
+---
+
+## 📜 License
+
+MIT — see [LICENSE](LICENSE) for details.
+
+---
+
+## 👤 Author
+
+**Abolfazl Fallahkar**
+Telegram: [@AbolfazlFa7](https://t.me/AbolfazlFa7)
