@@ -13,22 +13,17 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
-from environ import Env
+from dotenv import load_dotenv
 
-env = Env()
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parents[2]
+ENV_FILE_PATH = BASE_DIR.parent / ".env"
+load_dotenv(ENV_FILE_PATH)
 
-env.read_env(os.path.join(BASE_DIR.parent, '.env'))
+SECRET_KEY = os.getenv("SECRET_KEY")
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY', cast=str)
+DEBUG = os.getenv("DEBUG", default="True") in ["True", "true"]
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG', cast=bool, default=False)
-
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", default="").split(",")
 
 
 # Application Definition
@@ -49,8 +44,6 @@ LOCAL_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
-    'django_extensions',
-    'debug_toolbar',
     'taggit',
     'django_filters'
 ]
