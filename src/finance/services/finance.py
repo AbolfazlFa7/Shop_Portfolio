@@ -1,3 +1,4 @@
+import logging
 import uuid
 from asgiref.sync import sync_to_async
 from django.db import transaction
@@ -6,6 +7,8 @@ from finance.models import Wallet, WalletTransaction
 from finance.schemas.requests.finance import DepositToWalletSchema
 from finance.schemas.requests.zibal import ZibalPaymentRequest
 from finance.services.zibal import Zibal
+
+logger = logging.getLogger(__name__)
 
 
 class WalletDeposit:
@@ -26,12 +29,18 @@ class WalletDeposit:
             id=self.wallet_id, user_id=self.user_id, is_active=True
         ).first()
         if not wallet:
+            logger.warning(
+                f"Wallet {self.wallet_id} not found for user {self.user_id}"
+            )
             raise HttpError(404, "Wallet not found")
         return wallet
 
     @transaction.atomic
     def _create_transaction(self, wallet_id: int, track_id: int) -> WalletTransaction:
         wallet = Wallet.objects.select_for_update().get(id=wallet_id)
+        logger.info(
+            f"Creating deposit transaction for wallet {wallet_id}, amount {self.amount}"
+        )
         return WalletTransaction.objects.create(
             wallet=wallet,
             amount=self.amount,

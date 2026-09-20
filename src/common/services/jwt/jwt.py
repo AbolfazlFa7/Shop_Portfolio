@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
@@ -9,6 +10,7 @@ from ninja.errors import HttpError
 from ninja.security import HttpBearer
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class AsyncJWTService:
@@ -37,12 +39,15 @@ class AsyncJWTService:
         try:
             return jwt.decode(token, self.secret, algorithms=[self.algorithm])
         except jwt.ExpiredSignatureError:
+            logger.warning("Token expired error")
             raise HttpError(HTTPStatus.UNAUTHORIZED, "Token expired")
         except jwt.InvalidTokenError:
+            logger.warning("Invalid token error")
             raise HttpError(HTTPStatus.UNAUTHORIZED, "Invalid token")
 
     def _validate_type(self, payload: dict, expected: str) -> None:
         if payload.get("type") != expected:
+            logger.warning(f"Invalid token type: expected {expected}, got {payload.get('type')}")
             raise HttpError(HTTPStatus.UNAUTHORIZED, "Invalid token type")
 
     def _create_access(self, user_id: str) -> str:
@@ -53,11 +58,13 @@ class AsyncJWTService:
 
     async def _ensure_user_active(self, user_id: str) -> None:
         if not await User.objects.filter(id=user_id, is_active=True).aexists():
+            logger.warning(f"User not found or inactive: {user_id}")
             raise HttpError(HTTPStatus.UNAUTHORIZED, "User not found or inactive")
 
     async def create_pair(self, user) -> dict:
         user_id = str(user.id)
         await self._ensure_user_active(user_id)
+        logger.info(f"Creating token pair for user: {user_id}")
         return {
             "access_token": self._create_access(user_id),
             "refresh_token": self._create_refresh(user_id),
@@ -68,6 +75,7 @@ class AsyncJWTService:
         self._validate_type(payload, "refresh")
         user_id = payload["sub"]
         await self._ensure_user_active(user_id)
+        logger.info(f"Refreshing token for user: {user_id}")
         return {
             "access_token": self._create_access(user_id),
             "refresh_token": self._create_refresh(user_id),
@@ -77,7 +85,9 @@ class AsyncJWTService:
         payload = self._decode(refresh_token)
         self._validate_type(payload, "refresh")
         if str(payload.get("sub")) != str(user_id):
+            logger.warning(f"Invalid token owner on logout for user: {user_id}")
             raise HttpError(HTTPStatus.UNAUTHORIZED, "Invalid token owner")
+        logger.info(f"User logged out successfully: {user_id}")
 
     def verify_access(self, token: str) -> dict:
         payload = self._decode(token)
@@ -91,5 +101,6 @@ class JWTAuth(HttpBearer):
         payload = service.verify_access(token)
         user = await User.objects.filter(id=payload["sub"], is_active=True).afirst()
         if not user:
+            logger.warning(f"Authenticated user not found or inactive: {payload['sub']}")
             raise HttpError(HTTPStatus.UNAUTHORIZED, "User not found or inactive")
         return user
