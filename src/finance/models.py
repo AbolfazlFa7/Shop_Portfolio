@@ -39,7 +39,6 @@ class Wallet(models.Model):
             models.UniqueConstraint(
                 fields=["user", "type"],
                 name="unique_user_wallet_type",
-                nulls_distinct=False,
             ),
         ]
 

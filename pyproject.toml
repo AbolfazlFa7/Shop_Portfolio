@@ -33,6 +33,9 @@ asyncio_mode = "auto"
 pythonpath = ["src"]
 testpaths = ["src"]
 python_files = ["tests.py","test.py","tests_*", "test_*.py", "*_tests.py", "*_test.py"]
+filterwarnings = [
+    "ignore::django.utils.deprecation.RemovedInDjango70Warning",
+]
 
 [tool.ruff.lint]
 ignore = ["BLE001", "RUF012"]

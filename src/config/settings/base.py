@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR.parent / ".env")
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-fallback-key-for-tests")
 DEBUG = os.getenv("DEBUG", default="True") in ["True", "true"]
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", default="").split(",")
 
@@ -101,19 +101,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "authentication.User"
 
 # Email
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-EMAIL_USE_TLS = True
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Zibal
 ZIBAL_MERCHANT_ID = os.getenv("ZIBAL_MERCHANT_ID")
 
 # JWT
 JWT_SETTINGS = {
-    "JWT_SECRET_KEY": os.getenv("JWT_SECRET_KEY"),
+    "JWT_SECRET_KEY": os.getenv("JWT_SECRET_KEY", "fallback-jwt-secret-key-for-tests"),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "TEMP_TOKEN_LIFETIME": timedelta(minutes=2),
