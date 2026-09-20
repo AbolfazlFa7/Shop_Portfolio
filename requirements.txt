@@ -1,0 +1,12 @@
+django
+django-ninja
+dramatiq[redis]
+pyjwt
+pyotp
+django-environ
+django-taggit
+django_extensions
+debug_toolbar
+django-filter
+httpx
+psycopg2-binary
