@@ -188,3 +188,4 @@ cython_debug/
 # Other:
 .kilo
 TODO.md
+repomix.config.json

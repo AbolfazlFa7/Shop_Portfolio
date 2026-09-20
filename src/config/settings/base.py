@@ -3,6 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 
+
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR.parent / ".env")
 
@@ -26,6 +27,7 @@ LOCAL_APPS = [
     'catalog',
     'promotions',
     'finance',
+    'common',
 ]
 
 THIRD_PARTY_APPS = [
