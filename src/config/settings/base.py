@@ -1,7 +1,3 @@
-"""
-Django settings for Shop_Portfolio project.
-"""
-
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -11,9 +7,11 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR.parent / ".env")
 
 SECRET_KEY = os.getenv("SECRET_KEY")
-DEBUG = os.getenv("DEBUG", default="True").lower() == "true"
+DEBUG = os.getenv("DEBUG", default="True") in ["True", "true"]
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", default="").split(",")
 
+
+# Application Definition
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -35,27 +33,20 @@ THIRD_PARTY_APPS = [
     'django_filters'
 ]
 
-DRAMATIQ_BROKER = {
-    "BROKER": "dramatiq.brokers.redis.RedisBroker",
-    "OPTIONS": {
-        "url": os.getenv("DRAMATIQ_BROKER_URL"),
-    },
-}
-
 INSTALLED_APPS = DJANGO_APPS + LOCAL_APPS + THIRD_PARTY_APPS
 
-MIDDLEWARE = [
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
 
-INTERNAL_IPS = os.getenv("INTERNAL_IPS", "").split(",")
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Added for django_smart_ratelimit
+    "django_smart_ratelimit.middleware.RateLimitMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
 
 ROOT_URLCONF = 'config.urls'
 
@@ -84,11 +75,18 @@ DATABASES = {
 }
 
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'authentication.utils.validators.CustomPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
 ]
 
 LANGUAGE_CODE = 'en-us'
@@ -111,5 +109,13 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 EMAIL_USE_TLS = True
 
-# Zibal (Replacing Zarinpal)
+# Zibal
 ZIBAL_MERCHANT_ID = os.getenv("ZIBAL_MERCHANT_ID")
+
+# JWT
+JWT_SETTINGS = {
+    "JWT_SECRET_KEY": os.getenv("JWT_SECRET_KEY"),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "TEMP_TOKEN_LIFETIME": timedelta(minutes=2),
+}
