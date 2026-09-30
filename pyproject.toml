@@ -16,6 +16,8 @@ dependencies = [
     "psycopg2-binary>=2.9.13",
     "pyjwt>=2.14.0",
     "pyotp>=2.10.0",
+    "pillow>=12.3.0",
+    "django-smart-ratelimit>=4.12.1",
 ]
 
 [dependency-groups]
